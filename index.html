@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F4C97">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Parking check">
+<title>Parking check · Centrum West</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%230F4C97'/%3E%3Ctext x='50' y='78' font-family='Arial' font-weight='700' font-size='76' text-anchor='middle' fill='white'%3EP%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sign:#0F4C97; --sign-deep:#0A3A75; --plate:#FFFFFF; --plate-ink:#111820;
+  --bg:#E8ECF0; --surface:#FFFFFF; --ink:#16212C; --muted:#56636F; --line:#C9D1D9;
+  --yes:#17803D; --partly:#F2B300; --partly-ink:#2A2100; --no:#C4161C;
+  --font:"Overpass","Segoe UI",Roboto,system-ui,-apple-system,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#0D151E; --surface:#16212D; --ink:#E6ECF2; --muted:#9AA8B6; --line:#2B3947; --plate:#F3F5F7; }
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:17px;line-height:1.45}
+main{max-width:460px;margin:0 auto;padding:20px 18px 40px}
+header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:22px}
+header h1{font-size:19px;font-weight:800;margin:0;letter-spacing:-.01em}
+header p{margin:0;color:var(--muted);font-size:14px}
+
+/* The button is a Dutch parking sign with its sub-plate */
+.sign{display:block;width:min(78vw,300px);margin:0 auto;padding:0;border:0;background:none;cursor:pointer;font:inherit;color:inherit;-webkit-tap-highlight-color:transparent;transition:transform .12s ease}
+.sign:active{transform:scale(.97)}
+.sign:focus-visible{outline:4px solid var(--partly);outline-offset:6px;border-radius:20px}
+.sign .face{aspect-ratio:1;background:var(--sign);border-radius:18px;display:grid;place-items:center;position:relative;box-shadow:0 2px 0 var(--sign-deep)}
+.sign .face::after{content:"";position:absolute;inset:9px;border:5px solid #fff;border-radius:11px}
+.sign .face span{color:#fff;font-weight:800;font-size:min(52vw,200px);line-height:1;transform:translateY(.06em)}
+.sign .plate{margin-top:8px;background:var(--plate);color:var(--plate-ink);border:4px solid var(--plate-ink);border-radius:10px;padding:10px 12px 8px;text-align:center}
+.sign .plate strong{display:block;font-size:22px;font-weight:800;line-height:1.15}
+.sign .plate small{display:block;font-size:14px;color:#3B4651}
+.sign[aria-busy="true"] .face span{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.sign,.sign[aria-busy="true"] .face span{animation:none;transition:none}}
+
+.status{min-height:24px;text-align:center;color:var(--muted);font-size:15px;margin:16px 0 4px}
+.status a{color:inherit}
+.warn{color:var(--no);font-weight:600}
+
+/* Result: a plate whose colour carries the verdict */
+.result{margin-top:14px;background:var(--surface);border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+.verdict{display:flex;gap:12px;align-items:center;padding:14px 16px;color:#fff;font-weight:800;font-size:22px;line-height:1.15}
+.verdict .mark{flex:none;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:24px}
+.lvl-yes .verdict{background:var(--yes)}
+.lvl-partly .verdict{background:var(--partly);color:var(--partly-ink)}
+.lvl-partly .verdict .mark{background:rgba(0,0,0,.12)}
+.lvl-no .verdict,.lvl-none .verdict{background:var(--no)}
+.body{padding:14px 16px 16px}
+.body h2{margin:0;font-size:26px;font-weight:800;line-height:1.15;letter-spacing:-.01em}
+.dist{color:var(--muted);font-size:14px;margin:2px 0 10px}
+.body p{margin:8px 0 0}
+.limit{margin-top:10px;padding:10px 12px;border-radius:8px;background:color-mix(in srgb,var(--partly) 22%,var(--surface));font-weight:600}
+.note{color:var(--muted);font-size:15px}
+
+.nearby{margin-top:18px}
+.nearby h3,.manual h3{font-size:15px;font-weight:600;color:var(--muted);margin:0 0 8px}
+.nearby button{display:flex;width:100%;align-items:center;gap:10px;text-align:left;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer}
+.nearby button:focus-visible,.manual input:focus-visible,.manual button:focus-visible{outline:3px solid var(--sign);outline-offset:2px}
+.nearby .nm{flex:1;font-weight:600}
+.nearby .d{color:var(--muted);font-size:14px}
+.chip{flex:none;font-size:13px;font-weight:800;padding:2px 8px;border-radius:99px;color:#fff}
+.chip.yes{background:var(--yes)} .chip.partly{background:var(--partly);color:var(--partly-ink)} .chip.no,.chip.none{background:var(--no)}
+
+.manual{margin-top:30px;padding-top:20px;border-top:1px solid var(--line)}
+.manual form{display:flex;gap:8px}
+.manual input{flex:1;min-width:0;font:inherit;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.manual button{font:inherit;font-weight:800;padding:11px 16px;border-radius:10px;border:0;background:var(--sign);color:#fff;cursor:pointer}
+
+footer{margin-top:30px;color:var(--muted);font-size:13px;line-height:1.5}
+footer a{color:inherit}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Parking check</h1>
+    <p>Permit: Centrum West</p>
+  </header>
+
+  <button class="sign" id="check" type="button" aria-describedby="status">
+    <div class="face" aria-hidden="true"><span>P</span></div>
+    <div class="plate"><strong id="plateText">Can I park here?</strong><small>Tap to check this spot</small></div>
+  </button>
+
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+  <div id="out"></div>
+
+  <section class="manual">
+    <h3>Or check a street by name</h3>
+    <form id="manualForm">
+      <input id="manualInput" list="streets" placeholder="e.g. Statensingel" autocomplete="off" aria-label="Street name">
+      <button type="submit">Check</button>
+    </form>
+    <datalist id="streets"></datalist>
+  </section>
+
+  <footer>
+    Rules copied from the <a href="https://www.gemeentemaastricht.nl/en/parking-and-transport/parking-permit-residents" target="_blank" rel="noopener">Gemeente Maastricht permit page</a> (last updated there on 8 September 2026). Signs on the street always take precedence, and car-sharing spaces are never included. GPS can be several metres off, so where only one side or section of a street counts, check that yourself. Street names come from OpenStreetMap.
+  </footer>
+</main>
+
+<script>
+/* ---------- Permit data (from gemeentemaastricht.nl) ----------
+   Each entry: [street, where (empty = whole street), extra note] */
+const MY_ZONE = "Centrum West";
+const ZONES = {
+ "Centrum West": [
+  ["Academieplein","Not the first 4 marked permit-holder spaces when you come from Kakeberg.","Combi parking."],
+  ["Achter de Barakken","","Not in car-sharing spaces."],
+  ["Achter de Molens","Only on the south-west side in line with Klein Grachtje (near Grote Looiersstraat), and on the east side near numbers 5 and 7.",""],
+  ["Achter de Oude Minderbroeders","South side only.",""],
+  ["Aldenhofpark","Not in the permit-holder spaces on the side of houses 1 to 6.","Mixed-use parking; combi parking on the north side between Prins Bisschopsingel and the park."],
+  ["Bassin","Only the road on the east side of Bassin, in line with Van Hasseltkade.",""],
+  ["Batterijstraat","",""],
+  ["Begijnenstraat","Only the part north-west of Sint Pieterstraat.",""],
+  ["Bogaardenstraat","",""],
+  ["Bonnefantenstraat","","Mixed-use parking."],
+  ["Boschstraat","",""],
+  ["Breulingstraat","",""],
+  ["Brusselsestraat","","Combi parking. Not in car-sharing spaces."],
+  ["Calvariestraat","","Combi parking."],
+  ["Capucijnengang","Only the south side, from Bogaardenstraat to house number 7.",""],
+  ["Capucijnenstraat","","Permit-holder spaces between Apostelengang and Capucijnengang; combi parking elsewhere."],
+  ["De Bosquetplein","",""],
+  ["Ezelmarkt","East side only (odd house numbers).",""],
+  ["Grote Gracht","Only the south side between Statenstraat and Brusselsestraat.","Combi parking."],
+  ["Grote Looiersstraat","",""],
+  ["Heksenstraat","Only the south-westernmost section (1 space).",""],
+  ["Henric van Veldekeplein","Only the south side from Sint Servaasklooster to number 31, and the angled spaces opposite the Kanunnikencour entrance.",""],
+  ["Henri Hermanspark","","Mixed-use parking. Not in car-sharing spaces."],
+  ["Herbenusstraat","","Permit-holder spaces on both sides; some sections are mixed-use or combi parking."],
+  ["Hertogsingel","Only the eastern service road (odd house numbers) between Koningin Emmaplein and Polvertorenstraat.","Combi parking between Calvariestraat and Polvertorenstraat."],
+  ["Hoogfrankrijk","","Not in the car-sharing car park."],
+  ["Houtmaas","Only the western central section.",""],
+  ["Jekerstraat","",""],
+  ["Kakeberg","",""],
+  ["Kapoenstraat","Only the north-easternmost section.",""],
+  ["Kazemattenstraat","",""],
+  ["Keizer Karelplein","Only the east side between Oude Tweebergenpoort and Sint Servaasklooster.",""],
+  ["Kleine Gracht","",""],
+  ["Kleine Looiersstraat","",""],
+  ["Kommel","","Combi parking."],
+  ["Kruisherengang","","Combi parking."],
+  ["Laagfrankrijk","Only between Statensingel and Herbenusstraat.",""],
+  ["Lindenkruis","",""],
+  ["Nieuwenhofstraat","",""],
+  ["Polvertorenstraat","Only the south side (odd house numbers) between Hertogsingel and Sint Servaasbolwerk.","Combi parking."],
+  ["Prins Bisschopsingel","Only the service road on the city-centre side, between Sint Pieterskade and Aldenhofpark.","Combi parking."],
+  ["Prins Hessen Casselstraat","","Combi parking."],
+  ["Sint Bernardusstraat","Only the western section between Achter de Oude Minderbroeders and Helpoort.",""],
+  ["Sint Catharinastraat","",""],
+  ["Sint Hubertuslaan","Only between Prins Bisschopsingel and the Henri Hermanspark / Van Heylerhofflaan junction.","Combi parking on the barracks side; permit holders only on the side of houses 1 to 26."],
+  ["Sint Jacobstraat","East side only.",""],
+  ["Sint Lambertuslaan","Only the city-centre side between Van Heylerhofflaan and Prins Bisschopsingel.","Combi parking."],
+  ["Sint Nicolaasstraat","","Permit-holder spaces on both sides; combi parking between Jekerstraat and Brusselsestraat."],
+  ["Sint Pieterskade","Only the city-centre side between Poort Waarachtig and Prins Bisschopsingel.","Combi parking."],
+  ["Sint Servaasbolwerk","Only the west side from Calvariestraat to Polvertorenstraat.","Not in the car-sharing car park."],
+  ["Sint Servaasklooster","Only the east side from Keizer Karelplein to the southern carriageway of Henric van Veldekeplein, and the west side at the Bouillonstraat junction.",""],
+  ["Sint Teunisstraat","",""],
+  ["Statensingel","Only the east side (odd house numbers).","Combi parking."],
+  ["Statenstraat","",""],
+  ["Tongerseplein","Only the east side: between Aldenhofpark and Tongerseweg, and between Tongerseweg and Hertogsingel.","Combi parking."],
+  ["Tongersestraat","Only the south side between Abtstraat and Patersbaan, and the north side between Minderbroedersberg and Polvertorenstraat.",""],
+  ["Tongerseweg","Only the north side between Polvertorenstraat and Tongerseplein, and the south side between Tongerseplein and Aldenhofpark.","Combi parking on the north side. Not in the car-sharing car park."],
+  ["Uitbelderstraat","",""],
+  ["Van Hasseltkade","Only north of Maastrichter Grachtstraat.","Not in the car-sharing car park."],
+  ["Van Heylerhofflaan","","Combi parking."],
+  ["Vijfkoppen","Only opposite the Pesthuis and on the small bridge over the Jeker.",""],
+  ["Vrijthof","Only the west side, from Keizer Karelplein to the Hoofdwacht.",""],
+  ["Witmakersstraat","Only the northern section west of Hondstraat.",""],
+  ["Zakstraat","","Permit-holder spaces on both sides; combi parking on the western section between Brusselsestraat and Herbenusstraat."],
+  ["Zwingelput","",""]
+ ],
+ "Centrum Oost": "Akerstraat|Alexander Battalaan|Antoon Lipkenstraat|Bourgognestraat|Coclersstraat|Duitsepoort|Franciscus Romanusweg|Heugemerweg|Hoogbrugplein|Hoogbrugstraat|Lage Barakken|Louis Loyensstraat|Lyonnetstraat|Matthias Wijnandsstraat|Membredestraat|Oeverwal|Parallelweg|Rechtstraat|Ruiterij|Sint Antoniuslaan|Sint Maartenslaan|Sint Maartenspoort|Spoorweglaan|Sterreplein|Tischbeinstraat|Theodoor Schaepkensstraat|Turennestraat|Van den Berghstraat|Wilhelminasingel|Wycker Grachtstraat",
+ "Boschpoort": "Bosscherweg|Dassenstraat|Drijversstraat|Eendekooistraat|Everstraat|Fazantenstraat|Frederic Stroekenstraat|Ganzenstraat|Gebroeders van Limburgstraat|Goltziusstraat|Henri du Montstraat|Jachthoornstraat|Lodewijk de Bisschopstraat|Meutestraat|Nimrodstraat|Pastoor Moonmanstraat|Patoustraat|Pierre Kerstenstraat|Tirostraat|Valkenierstraat|Van Eyckstraat|Voedingskanaalweg|Weidmanstraat",
+ "Biesland": "Anjoulaan|Aramislaan|Arcadiastraat|D'Artagnanlaan|Athoslaan|Bieslanderweg|Cannerweg|Castelmorelaan|Champs Elyseesweg|Gardelaan|Gascognelaan|Navarralaan|Porthoslaan|Sint Gerlachusweg|Sint Theresiaplein|Tongerseweg=south part, from Tongerseplein to Aramislaan|Trianonstraat|Trocaderostraat",
+ "Brusselsepoort": "Acht Zaligheden|Aesculaapstraat|Antoon van Elenstraat|August Flamentstraat|Artsenijstraat|Bastionstraat|Becanusstraat|Beeldsnijdersdreef|Bilserbaan|Brusselseweg|Christiaan Sterckstraat|Clavareaustraat|Condéstraat|Dauphinstraat|Dokter Bakstraat|Dokter van Kleefstraat|Edmond Jasparstraat|Eenhoornsingel|Elisabeth Gruytersstraat|Erfprinsbastion|Fagotstraat|Fons Olterdissenstraat|Franquinetstraat|Frederikbastion|Furniusstraat|Halvemaanstraat|Hintzenstraat|Hoffmanstraat|Holsteinbastion|Hoornwerk|Joseph Hollmanstraat|Kochstraat|Laag Frankrijk=west of Statensingel|Laurent Polisstraat|Mariabastion|Menno van Coehoornstraat|Nobellaan|Orleansplein|Orleansstraat|Pastoor Delruellestraat|Pastoor Habetsstraat|Porseleinstraat|Ravelijnstraat|Röntgenstraat|Sint Annadal|Sint Annalaan|Sint Lucassingel|Sint Odastraat|Statensingel=west side (even house numbers)|Vaubanstraat|Verlengde Kazemattenstraat|Via Regia|Victor Reindersstraat|Victor de Stuersstraat|Weustenraadstraat|Zakstraat Noord",
+ "Heugemerveld": "Aalmoezenier Roumenplein|Aalmoezenier Roumenstraat|Aalmoezenier Verheggenplein|Aalmoezenier Verheggenstraat|Alfons Ariënsstraat|Baron van Hövellstraat|Bloemenweg|Duitsepoort|Heugemerweg|Hubert Parisstraat|Jonkheer Ruysstraat|Kardinaal van Rossumplein|Kardinaal van Rossumstraat|Kolpingstraat|Leo Moonenstraat|Minister Aalbersestraat|Minister Talmastraat|Mgr. Poelsplein|Mgr. Poelsstraat|Mgr. Schrijnenstraat|Paus Johannes 23straat|Paus Leo XIII plein|Paus Leo XIII straat|Peerboltestraat",
+ "Mariaberg": "Aert van Trichtweg|Akeleistraat|Ambachtsweg|Andoornstraat|André Severinweg|Anemonenstraat|Anjelierenstraat|Asterstraat|Begoniastraat|Brandenburgerplein|Brandenburgerweg|Brouwersweg|Chrysantenstraat|Elisabeth Strouvenlaan|Fatimaplein|Florasingel|Gebroeders Moorsweg|Gentiaanstraat|Gerard van Wermweg|Gildenweg|Hertogsingel=west side (even house numbers)|Heimoweg|Hyacintenstraat|Koningin Emmaplein|L. van Middelhovenweg|Marjoleinstraat|Meester Ulrichweg|M. G. Borgesiusplantsoen|Orchideeënstraat|Pastoor Wijnenweg|Proosdijweg|Ranonkelstraat|Resedastraat|Ringovenweg|Rozenstraat|Ruttensingel|Seringenstraat|Sint Annadal|Sint Annalaan|Tongerseplein=north-west side, between Tongerseweg and Hertogsingel|Tongerseweg=north side, between Tongerseplein and Javastraat|Tulpenstraat|Willem Vliegenstraat|Volksplein|Volksbondweg|Weryweg",
+ "Randwyck": "Aubeldomein|Bellomontedomein|Dopplerdomein|Jac. Thijssedomein|Linnaeusdomein|Plantijndomein|Ben Goeriondomein|Bolivardomein|Erasmusdomein|Gandhiplein|Garcia Lorcadomein|Hondiusdomein|Leuvenlaan|Lincolndomein|Martin Luther Kingdomein|Praaglaan|Romerodomein|Sadatdomein|Salernodomein|Salvador Allendedomein",
+ "Scharn": "5e Meistraat|13e Septemberstraat|Adelbert van Scharnlaan|Akersteenweg|Atillaweg|Beneluxstraat|Bergerstraat|Bernhardlaan|Burgemeester Cortenstraat|Churchilllaan|Concordiastraat|Dampstraat|Dokter Nevenstraat|Europalaan|Frederik Hendriklaan|Gerechtigheidslaan|Heerder Groenweg|Hunnenweg|Kapelstraat|Kloosterstraat|Mockstraat|Mockveld|Monseigneur Soudantstraat|Nassaulaan|Oranjeplein|Padualaan|Pastoor Janssenlaan|Pelikaanstraat|Prins Mauritslaan|Raadhuisplein|Raadhuisstraat|Regentesselaan|René van Chalonstraat|Scharnerweg|Secretaris Waberstraat|Secretaris Wijnandsstraat|Sibemaweg|Vredeslaan|Vrijheidslaan|Wethouder van Caldenborghlaan",
+ "Sint Maartenspoort Noord": "Albertiplein|Antonius Bieleveltstraat|Franciscus Romanusweg|Gebroeders Hermansstraat|Hertellplein|Karel de Vogelstraat|Schildersplein|Valentijn Clotsstraat",
+ "Villapark, Sint Pieter and Jekerdal": "Aylvalaan|Bergweg|Blekerij|Burgemeester Ceulenstraat|D'n Ingelsenhoof|Parkweg|Gardeniersstraat|Glacisweg|Graaf van Waldeckstraat|Henri Govaertsweg|Hoge Kanaaldijk|Jekerschans|Jekerweg|Kalfstraat|Laan van Brunswijk|Lage Kanaaldijk|Luikerweg|Mergelweg|Mosasaurusweg|Notgerusweg|Observantenweg|Papenweg|Pastoor Kribsweg|Pater Lemmensstraat|Perroenweg|Plateauweg|Plenkershoven|Prins Bisschopsingel=southern service road, between Sint Hubertuslaan and the Maas|Recollectenweg|Sebastianenweg|Sint Amandusstraat|Sint Hubertuslaan=between Prins Bisschopsingel and the Luikerweg / Mergelweg junction|Sint Lambertuslaan=south of Prins Bisschopsingel|Sint Monulphusweg|Sint Maternusstraat|Sint Pieterskade=south of Prins Bisschopsingel|Sint Pietersluisweg|Sint Rochusweg|Sint Willibrordusstraat|Tuindersstraat|Viertorenstraat|Wijngaardstraat|Wilgenlaan",
+ "Wittevrouwenveld": "Aartshertogenplein|Aartshertogenstraat|Albertusstraat|Amalbergastraat|Atletenbaan|Austrasiëstraat|Beerselstraat|Bergmansweg|Burgemeester Bauduinstraat|Burgemeester Hennequinstraat|Burgemeester Nierstraszstraat|Burgemeester Pijlsstraat|Burgemeester Raatstraat|Burgemeestersplein|Burgemeester van Akenstraat|Burgemeester van Oppenstraat|Burgemeester Wijnandtsstraat|Czaar Peterstraat|Dagobertstraat|Eburonenweg|Edisonstraat|Estafette|Frankenstraat|Franklinstraat|Friezenstraat|Friezenplein|Habsburgerplein|Habsburgerstraat|Hofmeiersplein|Hofmeierstraat|Hornestraat|Karel Martelstraat|Karolingenstraat|Keizer Arnulfstraat|Keizer Ottostraat|Koning Childebertstraat|Koning Clovisstraat|Koningsplein|Koning Zwentiboldstraat|Maasgouwstraat|Marconistraat|Merovingenstraat|Mondragonstraat|Morsestraat|Paltsstraat|Parmastraat|Pastoor Jacobsweg|President Rooseveltlaan|Reinier Langhalsstraat|Saskenstraat|Schepen Bemelmansstraat|Schepenenplein|Schepen Helgersstraat|Schepen Roosenstraat|Schwartzenbergstraat|Stadhoudersstraat|Tapijnstraat|Tolbiacstraat|Tubantenstraat|Van Pallantstraat|Voltastraat",
+ "Wyckerpoort": "Generaal Corlettstraat|Generaal Eisenhowerstraat|Generaal Hobbsstraat|Generaal Hodgesstraat|Generaal Marshall-laan|Generaal Simpsonstraat|Heerderweg|Heerderdwarsstraat|Koepelstraat|Koningsplein|Kolonel Millerstraat|Meerssenerweg|Nassaulaan|Noormannensingel|Old Hickoryplein|Oranjeplein|Overste Lockettstraat|Overste Senecalstraat|President Rooseveltlaan|Prinsenlaan|Prinsessenlaan|Professor van Benedenstraat|Professor Cobbenhagenstraat|Professor Crahaystraat|Professor Dumoulinstraat|Professor Henketplein|Professor Kernstraat|Professor Martensstraat|Professor Moserstraat|Professor Mullerstraat|Professor Nypelsstraat|Professor Pasmansstraat|Professor Pieter Willemsstraat|Professor Roerschstraat|Professor Scholsstraat|Professor Thomassenstraat|Scharnerweg|Sint Gerardusweg|Thorbeckeplantsoen|Waldeck Pyrmontstraat"
+};
+
+/* ---------- Matching ---------- */
+const ABBR = {st:"sint",burg:"burgemeester",mgr:"monseigneur",dr:"dokter",prof:"professor",gen:"generaal",past:"pastoor",mr:"meester"};
+function norm(s){
+  let t = s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/['’`´]/g,"").replace(/[.\-–]/g," ");
+  return t.split(/\s+/).map(w => ABBR[w] || w).join("").replace(/[^a-z0-9]/g,"");
+}
+const INDEX = {}, DISPLAY = {};
+for (const [zone, list] of Object.entries(ZONES)) {
+  const rows = Array.isArray(list) ? list : list.split("|").map(x => { const [n, w] = x.split("="); return [n, w || "", ""]; });
+  for (const [name, where, note] of rows) {
+    const k = norm(name);
+    (INDEX[k] ||= []).push({zone, mine: zone === MY_ZONE, where, note});
+    if (!DISPLAY[k] || zone === MY_ZONE) DISPLAY[k] = name;
+  }
+}
+function evaluate(name){
+  const hits = INDEX[norm(name)] || [];
+  const mine = hits.filter(h => h.mine), others = hits.filter(h => !h.mine);
+  let level = "none";
+  if (mine.length) level = (mine.some(h => h.where) || others.length) ? "partly" : "yes";
+  else if (others.length) level = "no";
+  return {name: DISPLAY[norm(name)] || name, level, mine, others};
+}
+
+/* ---------- Location + street lookup ---------- */
+function getPosition(){
+  return new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, {enableHighAccuracy:true, timeout:20000, maximumAge:0}));
+}
+async function fetchWithTimeout(url, opts = {}, ms = 12000){
+  const c = new AbortController(); const t = setTimeout(() => c.abort(), ms);
+  try { const r = await fetch(url, {...opts, signal:c.signal}); if (!r.ok) throw new Error(r.status); return await r.json(); }
+  finally { clearTimeout(t); }
+}
+function distToWay(lat, lon, geom){
+  const kx = Math.cos(lat*Math.PI/180)*111320, ky = 110574;
+  const P = geom.map(g => [(g.lon-lon)*kx, (g.lat-lat)*ky]);
+  if (P.length === 1) return Math.hypot(...P[0]);
+  let best = Infinity;
+  for (let i = 0; i < P.length-1; i++){
+    const [ax,ay] = P[i], [bx,by] = P[i+1], dx = bx-ax, dy = by-ay, L = dx*dx+dy*dy;
+    const t = L ? Math.max(0, Math.min(1, -(ax*dx+ay*dy)/L)) : 0;
+    best = Math.min(best, Math.hypot(ax+t*dx, ay+t*dy));
+  }
+  return best;
+}
+const OVERPASS = ["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
+async function nearbyStreets(lat, lon, radius){
+  const q = `[out:json][timeout:10];(way(around:${radius},${lat},${lon})["highway"]["name"]["highway"!~"^(footway|cycleway|path|steps|bridleway|corridor|platform|construction|proposed)$"];way(around:${radius},${lat},${lon})["place"="square"]["name"];);out tags geom;`;
+  for (const url of OVERPASS){
+    try {
+      const data = await fetchWithTimeout(url, {method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"}, body:"data="+encodeURIComponent(q)});
+      const byName = {};
+      for (const el of data.elements || []){
+        if (!el.geometry || !el.tags?.name) continue;
+        const d = distToWay(lat, lon, el.geometry), k = norm(el.tags.name);
+        if (!byName[k] || d < byName[k].dist) byName[k] = {name: el.tags.name, dist: d};
+      }
+      return Object.values(byName).sort((a,b) => a.dist - b.dist);
+    } catch(e) { /* try next server */ }
+  }
+  throw new Error("overpass");
+}
+async function reverseGeocode(lat, lon){
+  const d = await fetchWithTimeout(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=17&layer=address&lat=${lat}&lon=${lon}`);
+  const a = d.address || {};
+  return a.road || a.pedestrian || a.square || a.footway || null;
+}
+
+/* ---------- Rendering ---------- */
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const VERDICT = {
+  yes:    ["✓", "Yes, you can park here"],
+  partly: ["!", "Only on part of this street"],
+  no:     ["✕", "No, not with your permit"],
+  none:   ["✕", "No, not with your permit"]
+};
+const CHIP = {yes:"Yes", partly:"Partly", no:"No", none:"No"};
+const zoneList = hits => hits.map(h => h.where ? `${h.zone} (${h.where})` : h.zone).join("; ");
+
+function resultCard(r, dist){
+  const box = el("section", "result lvl-" + r.level);
+  const v = el("div", "verdict");
+  v.append(el("span", "mark", VERDICT[r.level][0]), el("span", null, VERDICT[r.level][1]));
+  const b = el("div", "body");
+  b.append(el("h2", null, r.name));
+  if (dist != null) b.append(el("div", "dist", dist < 3 ? "You're on this street" : `About ${Math.round(dist)} m from you`));
+  const m = r.mine[0];
+  if (r.level === "yes") {
+    b.append(el("p", null, "The whole street is part of your Centrum West permit area."));
+  } else if (r.level === "partly") {
+    b.append(el("p", null, "Your permit counts here, but only on this part:"));
+    b.append(el("div", "limit", m.where || "The Centrum West side of the street."));
+    if (r.others.length) b.append(el("p", "note", "Other parts of this street belong to: " + zoneList(r.others) + "."));
+  } else if (r.level === "no") {
+    const oost = r.others.some(h => h.zone === "Centrum Oost");
+    b.append(el("p", null, `This street is in the permit area for ${[...new Set(r.others.map(h => h.zone))].join(" and ")}.` + (oost ? " A Centrum West permit isn't valid in Centrum Oost." : "")));
+  } else {
+    b.append(el("p", null, "This street isn't on the Centrum West list. You may have to pay here, or parking may be free — check the signs."));
+  }
+  if (m && m.note) b.append(el("p", "note", m.note));
+  box.append(v, b);
+  return box;
+}
+
+function showResults(streets, pickIndex = 0){
+  const out = $("out"); out.replaceChildren();
+  const main = streets[pickIndex];
+  out.append(resultCard(evaluate(main.name), main.dist));
+  const rest = streets.filter((s, i) => i !== pickIndex && s.dist != null && s.dist <= streets[0].dist + 25).slice(0, 4);
+  if (rest.length){
+    const sec = el("section", "nearby");
+    sec.append(el("h3", null, "Not this street? Tap the one you're parked on"));
+    rest.forEach(s => {
+      const r = evaluate(s.name), btn = el("button");
+      btn.type = "button";
+      btn.append(el("span", "nm", r.name), el("span", "d", `${Math.round(s.dist)} m`), el("span", "chip " + r.level, CHIP[r.level]));
+      btn.onclick = () => { showResults(streets, streets.indexOf(s)); window.scrollTo({top: $("status").offsetTop - 10, behavior: "smooth"}); };
+      sec.append(btn);
+    });
+    out.append(sec);
+  }
+}
+
+function setStatus(html, isWarn){ const s = $("status"); s.className = "status" + (isWarn ? " warn" : ""); s.innerHTML = html; }
+function busy(on, label){ $("check").setAttribute("aria-busy", on); $("plateText").textContent = on ? label : "Can I park here?"; }
+
+$("check").addEventListener("click", async () => {
+  $("out").replaceChildren();
+  if (!("geolocation" in navigator) || !window.isSecureContext){
+    setStatus("Location only works when this page is opened from an https:// address. Use the street search below for now.", true);
+    return;
+  }
+  busy(true, "Finding you…"); setStatus("Getting your location…");
+  let pos;
+  try { pos = await getPosition(); }
+  catch (e) {
+    busy(false);
+    const msg = {1:"Location access is blocked for this page. Allow location for this site in your browser settings and try again.",
+                 2:"Your phone couldn't work out where you are. Move away from tall buildings and try again.",
+                 3:"Finding your location took too long. Try again."}[e.code] || "Couldn't get your location. Try again.";
+    setStatus(msg, true); return;
+  }
+  const {latitude: lat, longitude: lon, accuracy} = pos.coords;
+  const acc = Math.round(accuracy);
+  const mapLink = `<a href="https://www.openstreetmap.org/?mlat=${lat.toFixed(6)}&mlon=${lon.toFixed(6)}#map=19/${lat.toFixed(6)}/${lon.toFixed(6)}" target="_blank" rel="noopener">see on map</a>`;
+  busy(true, "Looking up street…"); setStatus(`Location found (±${acc} m) · ${mapLink}`);
+  let streets = [];
+  try { streets = await nearbyStreets(lat, lon, Math.min(80, Math.max(30, acc + 15))); } catch (e) {}
+  if (!streets.length){
+    try { const n = await reverseGeocode(lat, lon); if (n) streets = [{name: n, dist: null}]; } catch (e) {}
+  }
+  busy(false);
+  if (!streets.length){
+    setStatus(`Couldn't find a street name here (no internet, or the map service is busy). Try again, or search the street below. · ${mapLink}`, true);
+    return;
+  }
+  setStatus((acc > 40 ? `<span class="warn">Location is rough (±${acc} m) — double-check the street.</span> ` : `Accuracy ±${acc} m · `) + mapLink);
+  showResults(streets);
+});
+
+/* Manual lookup */
+const dl = $("streets");
+Object.values(DISPLAY).sort((a,b) => a.localeCompare(b, "nl")).forEach(n => { const o = document.createElement("option"); o.value = n; dl.append(o); });
+$("manualForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const v = $("manualInput").value.trim(); if (!v) return;
+  setStatus("");
+  $("out").replaceChildren(resultCard(evaluate(v), null));
+  $("manualInput").blur();
+  window.scrollTo({top: $("status").offsetTop - 10, behavior: "smooth"});
+});
+</script>
+</body>
+</html>
